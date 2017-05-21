@@ -1,79 +1,173 @@
 #Artículo para modelar el precio de los automóviles en Colombia.
 
 archivo<- "https://raw.githubusercontent.com/Stobon9/Preciosgamlss/master/datosprecios"
+
 datos<- read.table(file=archivo,header=TRUE,sep =',')
 
 attach(datos)
+
 #Ponemos la capacidad de pasajeros como un factor:
+
 CapacidadPasajeros <- factor(CapacidadPasajeros)
 
 #Acá vamos a definir los niveles de las dummys(Las cualis)
-levels(TipoCaja) <-c('AT', 'MT', 'TP')
+
+levels(TipoCaja) <-c('AT','MT','TP')
+
 levels(CapacidadPasajeros) <-c('2', '4', '5', '7')
+
 levels(Marca) <- c( 'CHEVROLET','MAZDA', 'RENAULT')
 
 #Necesitamos ajustar un modelo GAMLSS
+
 #Para eso primero necesitamos  saber que distribución se ajusta.
 
 require(gamlss)
+
 modelos <- fitDist(y=Precio, type='realplus', k=6.4815)
+
 modelos$fits
+
 modelos$mu
+
 modelos$sigma
+
 modelos$nu
+
 modelos$tau
 
-#Ahora vamos a ajustarle el modelo gamlss a la regresión
-require(gamlss)
+#Generamos 5 modelos para la distribución y comparamos los SBC
+#Normal
+empty.NO <- gamlss(Precio ~ 1 sigma.fo= ~1, 
+                   data=datos, family=NO)
+
+horizonte <- formula(lm(Precio ~ Marca + Peso + Potencia +Cilindraje + TipoCaja+ CapacidadPasajeros, data=datos))
+
+mod.NO <- stepGAICAll.A(object = empty.NO, k=6.4815, 
+                        scope = list(lower= ~1, upper= horizonte ), sigma.scope = list(lower= ~1, upper= horizonte))
+summary(mod.NO)
+
+#Gamma
+empty.GA <- gamlss(Precio ~ 1, sigma.fo= ~1, 
+                   data=datos, family=GA)
+
+horizonte <- formula(lm(Precio ~ Marca + Peso + Potencia +Cilindraje + TipoCaja+ CapacidadPasajeros, data=datos))
+
+mod.GA <- stepGAICAll.A(object = empty.GA, k=6.4815, 
+                        scope = list(lower= ~1, upper= horizonte ), sigma.scope = list(lower= ~1, upper= horizonte))
+summary(mod.GA)
+
+#LogNormal
+empty.LOGNO <- gamlss(Precio ~ 1, sigma.fo= ~1, 
+                      data=datos, family=LOGNO)
+
+horizonte <- formula(lm(Precio ~ Marca + Peso + Potencia +Cilindraje + TipoCaja+ CapacidadPasajeros, data=datos))
+
+mod.LOGNO <- stepGAICAll.A(object = empty.LOGNO, k=6.4815, 
+                           scope = list(lower= ~1, upper= horizonte ), sigma.scope = list(lower= ~1, upper= horizonte))
+summary(mod.LOGNO)
+
+#EXP
+empty.EXP <- gamlss(Precio ~ 1, sigma.fo= ~1, 
+                    data=datos, family=EXP)
+
+horizonte <- formula(lm(Precio ~ Marca + Peso + Potencia +Cilindraje + TipoCaja+ CapacidadPasajeros, data=datos))
+
+mod.EXP <- stepGAICAll.A(object = empty.EXP, k=6.4815, 
+                         scope = list(lower= ~1, upper= horizonte ))
+summary(mod.EXP)
+
+#BCTo
 
 empty.BCTo <- gamlss(Precio ~ 1, sigma.fo= ~1, 
-                      nu.fo= ~1, tau.fo= ~1,
-                      data=datos, family=BCTo)
+                     
+                     nu.fo= ~1, tau.fo= ~1,
+                     
+                     data=datos, family=BCTo)
+
 
 horizonte <- formula(lm(Precio ~ Marca + Peso + Potencia +Cilindraje + TipoCaja+ CapacidadPasajeros, data=datos))
 
 mod.BCTo <- stepGAICAll.A(object = empty.BCTo, k=6.4815, 
-                           scope = list(lower= ~1, upper= horizonte ), sigma.scope = list(lower= ~1, upper= horizonte))
+                          
+                          scope = list(lower= ~1, upper= horizonte ), sigma.scope = list(lower= ~1, upper= horizonte))
 
 summary(mod.BCTo)
 
-#Ahora que ya tenemos los modelos vamos a ver los residuales
+#Ahora que ya tenemos los modelos vamos a ver los residuales del mejor modelo
+
 shapiro.test(residuals(mod.BCTo))
 
-
 #Gráfico de densidad
-plot(density(Precio),las=1, lwd=3, main = "Densidad Precio",col="black")
+
+plot(density(Precio),las=1, lwd=3,col="black",ylab = "Densidad")
 
 #Gráficos de Normalidad
+
 m     <- matrix(c(1,2), 1, byrow=TRUE)
+
 ancho <- c(0.8)
+
 alto  <- c(0.25,0.2)#,lcm(0.5))
+
 layout(m)
 
 plot(mod.BCTo$residuals, las= 1, main="Residuales del modelo", xlab=NULL, ylab = NULL, pch=20)
+
 qqnorm(mod.BCTo$residuals,ylab = "Cuartiles de la muestra", xlab = "Cuartiles teóricos")
+
 qqline(mod.BCTo$residuals)
 
 #Gráficos para las variables Cuantitativas
+
 m     <- matrix(c(1,2,3), 1, byrow=TRUE)
+
 ancho <- c(0.8)
+
 alto  <- c(0.25,0.2,0.2)#,lcm(0.5))
+
 layout(m)
 
-plot(x=Cilindraje, y=Precio, pch=20, xlab ='Cilindraje', ylab ='',main ="Relación Pecio-Cilindraje",las=1, cex.axis=1, cex.lab=1.2)
-plot(x=Potencia, y=Precio, pch=20, xlab =' Potencia',ylab ='', main="Relación Precio-Potencia", las=1, cex.axis=1, cex.lab=1.2)
-plot(x=Peso, y=Precio, pch=20, xlab =' Peso', ylab ='',main="Relación Precio-Peso",las=1,cex.axis=1, cex.lab=1.2)
+plot(x=Cilindraje, y=Precio, pch=20, xlab ='Cilindraje', ylab ='Precio    ',main ="Relación Pecio-Cilindraje",las=1, cex.axis=1, cex.lab=1.2)
+
+plot(x=Potencia, y=Precio, pch=20, xlab =' Potencia',ylab ='Precio    ', main="Relación Precio-Potencia", las=1, cex.axis=1, cex.lab=1.2)
+
+plot(x=Peso, y=Precio, pch=20, xlab =' Peso', ylab ='Precio     ',main="Relación Precio-Peso",las=1,cex.axis=1, cex.lab=1.2)
+
+#Gráfico de Correlaciones
+datos.num <- datos[, c('Precio', 'Peso', 'Potencia', 'Cilindraje')]
+
+correlacion <- function(x, y, digits=2, prefix= "", cex.cor)
+{
+  usr <- par("usr"); on.exit(par(usr))
+  par(usr = c(0, 1, 0, 1))
+  r <- abs(cor(x, y))
+  txt <- format(c(r, 0.123456789), digits =digits)[1]
+  TXT <- paste(prefix, txt, sep ="")
+  if(missing(cex.cor)) cex <- 0.8/strwidth(txt)
+  text(0.5,0.5, txt, cex = cex * r)
+}
+
+pairs(datos.num,upper.panel = NULL, lower.panel = correlacion)
 
 #Worm Plot
+
 wp(mod.BCTo)
+
 plot(mod.BCTo)
 
 #Gráficos para las variables Cualitativas
+
 m     <- matrix(c(1,2,3), 1, byrow=TRUE)
+
 ancho <- c(0.8)
+
 alto  <- c(0.25,0.2,0.2)#,lcm(0.5))
+
 layout(m)
 
-boxplot(Precio ~ Marca, las=1,main="Precio según la Marca del auto", cex.axis=1)
-boxplot(Precio ~ CapacidadPasajeros,las=1, main="Precio según la Capacidad de pasajeros del auto")
-boxplot(Precio ~ TipoCaja, las=1,main="Precio según el tipo de caja del auto")
+boxplot(Precio ~ Marca, las=1,main="Precio según la Marca del auto", cex.axis=1 , ylab ="Precio           " , xlab = "Marca")
+
+boxplot(Precio ~ CapacidadPasajeros,las=1, main="Precio según la Capacidad de pasajeros del auto" ,ylab ="Precio           ",xlab = "Capacidad de Pasajeros" )
+
+boxplot(Precio ~ TipoCaja, las=1,main="Precio según el tipo de caja del auto", ylab ="Precio           " ,xlab = "Tipo de Caja")
